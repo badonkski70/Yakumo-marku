@@ -788,19 +788,23 @@ struct VulkanRenderer::Impl {
             picture_rect = content_rect;
             return;
         }
-        // The game's 2D interface: the whole picture under Stretch; under
-        // Original and Fill the PSP's shape, centred and as large as fits
-        // (Fill draws the interface there, interface_fit).
+        // Stretch fills the window by definition: it runs under the cutout
+        // rather than stopping short of it, which is the mode's whole point.
+        // This must come before the test below, which asks how far the
+        // picture already sits from the edge: Stretch always sits at 0, so
+        // that test could never pass and every window with a cutout lost the
+        // cutout's depth on both sides, bar on the clear side too. The touch
+        // controls keep out of the cutout through content_rect regardless.
+        if (aspect == settings::Aspect::Stretch) return;
+        // Under Original and Fill the game's 2D interface is the PSP's shape,
+        // centred and as large as fits (Fill draws the interface there,
+        // interface_fit).
         const auto width = static_cast<std::int32_t>(full.extent.width);
         const auto height = static_cast<std::int32_t>(full.extent.height);
-        std::int32_t box_width = width;
-        std::int32_t box_height = height;
-        if (aspect != settings::Aspect::Stretch) {
-            const double scale =
-                std::min(static_cast<double>(width) / kPspWidth, static_cast<double>(height) / kPspHeight);
-            box_width = static_cast<std::int32_t>(std::lround(kPspWidth * scale));
-            box_height = static_cast<std::int32_t>(std::lround(kPspHeight * scale));
-        }
+        const double scale =
+            std::min(static_cast<double>(width) / kPspWidth, static_cast<double>(height) / kPspHeight);
+        const auto box_width = static_cast<std::int32_t>(std::lround(kPspWidth * scale));
+        const auto box_height = static_cast<std::int32_t>(std::lround(kPspHeight * scale));
         const std::int32_t side = (width - box_width) / 2;
         const std::int32_t above = (height - box_height) / 2;
         if (side >= std::max(left, right) && above >= std::max(top, bottom)) return;
