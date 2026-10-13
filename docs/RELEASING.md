@@ -350,6 +350,10 @@ To move to a new key without stranding players, sign releases with both for a wh
 
 Attach the APK and `SHA256SUMS` to the GitHub release, and the FFmpeg source archive as for Linux: the APK carries the same LGPL FFmpeg.
 
+### The APK workflow
+
+`.github/workflows/android-apk.yml` runs the same command on every push to `main` and uploads the APK as a short-lived artifact. It needs a self-hosted runner labelled `yakumo-apk`: the generated corpus, the overlay libraries and the release key are derived from the game or secret to the project, so they stay on one machine and never reach a hosted runner. The job reads that machine's checkout, Android SDK and JDK from the `YAKUMO_DIR`, `ANDROID_HOME` and `JAVA_HOME` repository variables, takes the pushed commit with `git pull --ff-only` and runs `release_android.sh` over a build directory whose overlays are already built. It is the packaging path, not the release path: signing, checks and the artifact's fourteen-day life are the same, attaching it to a release stays a separate, deliberate step.
+
 ## Device scenario sign-off
 
 Before publishing, follow [DEVICE_TESTING.md](DEVICE_TESTING.md#before-a-release)

@@ -1,0 +1,64 @@
+name: Android APK
+
+# Builds and signs the APK on the maintainer's own machine, the one that holds
+# the Android SDK, the signing key and the generated and overlay corpora. Those
+# corpora are derived from the game executable, so they stay out of Git and out
+# of any hosted runner: the job needs a self-hosted runner labelled yakumo-apk,
+# and it waits in the queue until one is online.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One build directory on the machine: a second job must not write to it.
+concurrency:
+  group: android-apk
+  cancel-in-progress: false
+
+jobs:
+  apk:
+    name: APK (arm64-v8a)
+    runs-on: [self-hosted, linux, yakumo-apk]
+    timeout-minutes: 180
+    env:
+      # Repository variables, not paths in this file: set them under
+      # Settings -> Secrets and variables -> Actions -> Variables.
+      ANDROID_HOME: ${{ vars.ANDROID_HOME }}
+      JAVA_HOME: ${{ vars.JAVA_HOME }}
+      YAKUMO_DIR: ${{ vars.YAKUMO_DIR }}
+    steps:
+      # No checkout: the corpora the release needs are in the machine's own
+      # checkout, not in a fresh one. The commit is taken there instead.
+      - name: Check the build machine
+        run: |
+          for name in ANDROID_HOME JAVA_HOME YAKUMO_DIR; do
+            [[ -n "${!name}" ]] || { echo "::error::set the $name repository variable"; exit 1; }
+          done
+          [[ -d "$YAKUMO_DIR/.git" && -d "$YAKUMO_DIR/profiles/mhp3rd/generated" ]] ||
+            { echo "::error::$YAKUMO_DIR is not a Yakumo checkout holding the generated corpus"; exit 1; }
+          sdk_cmake="$(ls -d "$ANDROID_HOME"/cmake/*/bin | sort -V | tail -1)"
+          echo "PATH=$JAVA_HOME/bin:$sdk_cmake:$PATH" >> "$GITHUB_ENV"
+
+      - name: Take the pushed commit
+        working-directory: ${{ vars.YAKUMO_DIR }}
+        # --ff-only refuses rather than merging or throwing local work away.
+        run: git pull --ff-only
+
+      - name: Build, sign and check the APK
+        working-directory: ${{ vars.YAKUMO_DIR }}
+        # The documented release path: rebuilds libmain.so as a release, packs
+        # the 355 overlay libraries the machine already built, signs with the key
+        # in keys/key.env, and refuses game data or a library importing anything
+        # Android 10 lacks.
+        run: profiles/mhp3rd/scripts/release_android.sh out/android-app
+
+      - name: Publish the APK
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: yakumo-android-arm64-${{ github.sha }}
+          path: ${{ vars.YAKUMO_DIR }}/out/release-android/dist/
+          if-no-files-found: error
+          retention-days: 14
