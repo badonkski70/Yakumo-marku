@@ -25,16 +25,9 @@ if [[ ! -e "$iso" ]]; then
     echo "error: $iso not found; run scripts/prepare_game.sh first" >&2
     exit 1
 fi
-# An Android app build directory works too: it holds the profile as libmain.so
-# rather than an executable, and an APK only carries lib*.so, so its overlay
-# libraries carry that prefix.
-if [[ ! -x "$build_dir/bin/Yakumo" && ! -f "$build_dir/bin/libmain.so" ]]; then
+if [[ ! -x "$build_dir/bin/Yakumo" ]]; then
     echo "error: $build_dir/bin/Yakumo not found; build the profile first" >&2
     exit 1
-fi
-lib_prefix=""
-if grep -q '^MHP3RD_ANDROID_APP:BOOL=ON$' "$build_dir/CMakeCache.txt" 2> /dev/null; then
-    lib_prefix="lib"
 fi
 
 mkdir -p "$extract_dir"
@@ -55,7 +48,7 @@ for image in "${images[@]}"; do
     rest="${stem#overlay_}"
     base="${rest%%_*}"
     name="${rest#*_}"
-    if compgen -G "$library_dir/${lib_prefix}ovl${base}_${name}_*" > /dev/null; then
+    if compgen -G "$library_dir/ovl${base}_${name}_*" > /dev/null; then
         skipped=$((skipped + 1))
         continue
     fi
@@ -78,7 +71,7 @@ if [[ ${#targets[@]} -gt 0 ]]; then
     echo "building ${#targets[@]} overlay libraries with -j $jobs"
     cmake --build "$build_dir" -j "$jobs" --target "${targets[@]}" -- -k 0 || true
     for target in "${targets[@]}"; do
-        if compgen -G "$library_dir/${lib_prefix}${target#overlay_}.*" > /dev/null; then
+        if compgen -G "$library_dir/${target#overlay_}.*" > /dev/null; then
             built=$((built + 1))
         else
             failed+=("${target#overlay_}")
