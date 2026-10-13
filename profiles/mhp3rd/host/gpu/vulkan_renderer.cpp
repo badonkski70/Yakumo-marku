@@ -801,8 +801,7 @@ struct VulkanRenderer::Impl {
         // interface_fit).
         const auto width = static_cast<std::int32_t>(full.extent.width);
         const auto height = static_cast<std::int32_t>(full.extent.height);
-        const double scale =
-            std::min(static_cast<double>(width) / kPspWidth, static_cast<double>(height) / kPspHeight);
+        const double scale = std::min(static_cast<double>(width) / kPspWidth, static_cast<double>(height) / kPspHeight);
         const auto box_width = static_cast<std::int32_t>(std::lround(kPspWidth * scale));
         const auto box_height = static_cast<std::int32_t>(std::lround(kPspHeight * scale));
         const std::int32_t side = (width - box_width) / 2;
